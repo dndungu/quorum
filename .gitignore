@@ -1,0 +1,12 @@
+# Credentials and local environment files
+.env
+.env.*
+!.env.example
+
+# Local configuration and generated review runs
+.quorum/config.yaml
+.quorum/runs/
+
+# Generated binary and optional annotated source documents
+/quorum
+*.reviewed.md

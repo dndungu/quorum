@@ -1,0 +1,9 @@
+defaults:
+  base_url_env: QUORUM_BASE_URL
+  api_key_env: QUORUM_API_KEY
+
+seats:
+  - name: reviewer-one
+    model: provider/model-id
+  - name: reviewer-two
+    model: provider/model-id
