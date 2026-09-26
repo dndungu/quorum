@@ -23,31 +23,39 @@ def skill_body(path):
 def main():
     codex = PLUGINS / "codex"
     claude = PLUGINS / "claude-code"
-    cursor_command = PLUGINS / "cursor/.cursor/commands/quorum-review.md"
+    cursor = PLUGINS / "cursor"
 
     codex_manifest = load_json(codex / "plugin.json")
     claude_manifest = load_json(claude / ".claude-plugin/plugin.json")
+    cursor_manifest = load_json(cursor / ".cursor-plugin/plugin.json")
     codex_market = load_json(ROOT / ".agents/plugins/marketplace.json")
     claude_market = load_json(ROOT / ".claude-plugin/marketplace.json")
+    cursor_market = load_json(ROOT / ".cursor-plugin/marketplace.json")
 
     if codex_manifest["name"] != "quorum-review" or codex_manifest["version"] != "0.1.0":
         raise ValueError("Codex plugin identity/version mismatch")
     if claude_manifest["name"] != "quorum-review":
         raise ValueError("Claude plugin identity mismatch")
+    if cursor_manifest["name"] != "quorum-review" or cursor_manifest["version"] != "0.1.0":
+        raise ValueError("Cursor plugin identity/version mismatch")
     if codex_market["plugins"][0]["name"] != codex_manifest["name"]:
         raise ValueError("Codex marketplace entry does not match its plugin")
     if claude_market["plugins"][0]["name"] != claude_manifest["name"]:
         raise ValueError("Claude marketplace entry does not match its plugin")
+    if cursor_market["plugins"][0]["name"] != cursor_manifest["name"]:
+        raise ValueError("Cursor marketplace entry does not match its plugin")
     if not (ROOT / codex_market["plugins"][0]["source"]["path"].removeprefix("./")).is_dir():
         raise ValueError("Codex marketplace source path does not exist")
     if not (ROOT / claude_market["plugins"][0]["source"].removeprefix("./")).is_dir():
         raise ValueError("Claude marketplace source path does not exist")
+    if not (ROOT / cursor_market["plugins"][0]["source"]).is_dir():
+        raise ValueError("Cursor marketplace source path does not exist")
 
     expected = skill_body(PLUGINS / "shared/review-workflow.md")
     bodies = [
         skill_body(codex / "skills/quorum-review/SKILL.md"),
         skill_body(claude / "skills/quorum-review/SKILL.md"),
-        cursor_command.read_text(encoding="utf-8").lstrip(),
+        skill_body(cursor / "skills/quorum-review/SKILL.md"),
     ]
     if any(body != expected for body in bodies):
         raise ValueError("host instructions drifted from plugins/shared/review-workflow.md")

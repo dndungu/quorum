@@ -29,15 +29,23 @@ Restart or reload plugins, then invoke `/quorum-review:quorum-review` with the d
 
 ## Install in Cursor
 
-Cursor project commands are Markdown files. Copy the command into the project you want to use:
+For local development, copy the plugin folder into Cursor's local plugin directory:
 
 ```sh
-mkdir -p .cursor/commands
-cp /path/to/quorum/plugins/cursor/.cursor/commands/quorum-review.md .cursor/commands/
+mkdir -p ~/.cursor/plugins/local
+cp -R /path/to/quorum/plugins/cursor ~/.cursor/plugins/local/quorum-review
 ```
 
-Open or reload the project, then invoke `/quorum-review` in Cursor chat.
+Restart Cursor or reload the window. Open **Customize**, confirm Quorum Review
+appears, install it, then invoke `/quorum-review` in Agent chat. Teams and
+Enterprise admins can also import `https://github.com/dndungu/quorum` as a team
+marketplace; the repository root `.cursor-plugin/marketplace.json` lists the
+plugin. For the public Cursor Marketplace, submit the Quorum repository for
+Cursor's review at <https://cursor.com/marketplace/publish>.
 
 ## Verify package files
 
-Run `python3 plugins/validate.py` from the repository root to check manifests, marketplace paths, command files, and that all three hosts carry the same workflow instructions. This checks repository packaging; an actual host installation and review are still required before claiming consumer verification.
+Run `python3 plugins/validate.py` from the repository root to check manifests,
+marketplace paths, and that all three hosts carry the same workflow instructions.
+This checks repository packaging; an actual host installation and review are
+still required before claiming consumer verification.

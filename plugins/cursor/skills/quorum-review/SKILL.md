@@ -1,3 +1,8 @@
+---
+name: quorum-review
+description: Run Quorum's independent model panel to review a proposal, plan, draft, policy, or candidate agent skill.
+---
+
 # Review a decision document with Quorum
 
 Use this workflow when asked to get an independent, evidence-aware review of a proposal, plan, policy, draft, or candidate agent skill.
