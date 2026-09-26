@@ -1,0 +1,13 @@
+{
+  "name": "quorum-review",
+  "version": "0.1.0",
+  "description": "Review one decision document with Quorum's independent model panel.",
+  "author": {
+    "name": "Quorum contributors"
+  },
+  "homepage": "https://github.com/dndungu/quorum",
+  "repository": "https://github.com/dndungu/quorum",
+  "license": "Apache-2.0",
+  "keywords": ["review", "decision", "documents", "agent-skills"],
+  "skills": ["skills/"]
+}

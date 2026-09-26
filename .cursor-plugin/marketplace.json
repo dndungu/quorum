@@ -1,0 +1,16 @@
+{
+  "name": "quorum-plugins",
+  "owner": {
+    "name": "Quorum contributors"
+  },
+  "metadata": {
+    "description": "Quorum coding-agent plugins."
+  },
+  "plugins": [
+    {
+      "name": "quorum-review",
+      "source": "plugins/cursor",
+      "description": "Review one decision document with Quorum's independent model panel."
+    }
+  ]
+}

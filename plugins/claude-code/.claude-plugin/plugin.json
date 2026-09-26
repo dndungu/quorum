@@ -1,0 +1,9 @@
+{
+  "name": "quorum-review",
+  "version": "0.1.0",
+  "description": "Review one decision document with Quorum's independent model panel.",
+  "author": {
+    "name": "Quorum contributors",
+    "url": "https://github.com/dndungu/quorum"
+  }
+}
