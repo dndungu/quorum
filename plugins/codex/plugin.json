@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "quorum-review",
+  "version": "0.1.0",
+  "description": "Review one decision document with Quorum's independent model panel.",
+  "author": {
+    "name": "Quorum contributors",
+    "url": "https://github.com/dndungu/quorum"
+  },
+  "homepage": "https://github.com/dndungu/quorum",
+  "repository": "https://github.com/dndungu/quorum",
+  "license": "Apache-2.0",
+  "keywords": ["review", "decision", "documents", "agent-skills"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Quorum Review",
+        "shortDescription": "Review a document using your Quorum panel.",
+        "longDescription": "Run Quorum's independent model panel against a proposal, plan, draft, or candidate skill. Quorum handles configuration, model calls, saved sources, reviews, synthesis, and cost reporting.",
+        "developerName": "Quorum contributors",
+        "category": "Developer Tools",
+        "capabilities": ["Review documents", "Synthesize independent feedback"]
+      }
+    }
+  }
+}

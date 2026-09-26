@@ -17,6 +17,9 @@ type Options struct {
 	Chair       string
 	Rounds      int
 	Focus       string
+	Audience    string
+	Decision    string
+	Evidence    fileList
 	Template    string
 	Out         string
 	NoSynthesis bool
@@ -25,6 +28,7 @@ type Options struct {
 	DryRun      bool
 	Timeout     time.Duration
 	Parallel    int
+	MaxTokens   int
 	Verbose     bool
 }
 
@@ -42,6 +46,9 @@ selection:
 behavior:
   --rounds n            1 = single pass; 2+ = cross-examination rounds
   --focus "text"        extra instruction appended to the brief
+  --audience "text"     who needs to understand and act on the document
+  --decision "text"     decision or action the document should enable
+  --evidence file       supporting source (repeatable; copied into the brief)
   --template file       custom response-format preamble
 
 output:
@@ -55,6 +62,7 @@ plumbing:
   --dry-run             print brief and seats, call no APIs
   --timeout dur         per-seat timeout (default 5m)
   --parallel n          max concurrent seats (default 4)
+  --max-tokens n        output-token cap per call (default 4096)
   -v                    verbose
   seats                 list configured reviewers
 `)
@@ -69,6 +77,9 @@ func parseArgs(args []string) (*Options, error) {
 	fs.StringVar(&o.Chair, "chair", "", "synthesizing reviewer")
 	fs.IntVar(&o.Rounds, "rounds", 1, "review rounds (2+ enables cross-exam)")
 	fs.StringVar(&o.Focus, "focus", "", "extra review instruction")
+	fs.StringVar(&o.Audience, "audience", "", "intended audience")
+	fs.StringVar(&o.Decision, "decision", "", "decision or action to enable")
+	fs.Var(&o.Evidence, "evidence", "supporting source file (repeatable)")
 	fs.StringVar(&o.Template, "template", "", "custom response format file")
 	fs.StringVar(&o.Out, "out", "", "output base dir (default beside input file)")
 	fs.StringVar(&o.Out, "output-dir", "", "output base dir (alias for --out)")
@@ -78,6 +89,7 @@ func parseArgs(args []string) (*Options, error) {
 	fs.BoolVar(&o.DryRun, "dry-run", false, "no API calls")
 	timeout := fs.String("timeout", "5m", "per-seat timeout")
 	fs.IntVar(&o.Parallel, "parallel", 4, "max concurrent seats")
+	fs.IntVar(&o.MaxTokens, "max-tokens", 4096, "output-token cap per call")
 	fs.BoolVar(&o.Verbose, "v", false, "verbose")
 
 	if len(args) > 0 && args[0] == "seats" {
@@ -92,6 +104,15 @@ func parseArgs(args []string) (*Options, error) {
 		return nil, fmt.Errorf("bad --timeout: %w", err)
 	}
 	o.Timeout = d
+	if d <= 0 {
+		return nil, errors.New("--timeout must be positive")
+	}
+	if o.Parallel < 1 {
+		return nil, errors.New("--parallel must be at least 1")
+	}
+	if o.MaxTokens < 1 {
+		return nil, errors.New("--max-tokens must be at least 1")
+	}
 	rest := fs.Args()
 	switch len(rest) {
 	case 0:
@@ -136,12 +157,29 @@ func run(args []string) error {
 	if len(seats) == 0 {
 		return errors.New("no seats selected; check config and --seats/--skip")
 	}
+	chair := seats[0]
+	if o.Chair != "" {
+		found := false
+		for _, s := range seats {
+			if s.Name == o.Chair {
+				chair, found = s, true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("--chair: %q is not a selected reviewer", o.Chair)
+		}
+	}
 
 	source, err := os.ReadFile(o.File)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", o.File, err)
 	}
 
+	brief, err := buildBrief(string(source), o)
+	if err != nil {
+		return err
+	}
 	runDir, err := newRunDir(o.Out)
 	if err != nil {
 		return err
@@ -150,7 +188,6 @@ func run(args []string) error {
 		return err
 	}
 
-	brief := buildBrief(string(source), o.Template, o.Focus)
 	if err := os.WriteFile(filepath.Join(runDir, "brief.md"), []byte(brief), 0o644); err != nil {
 		return err
 	}
@@ -166,19 +203,21 @@ func run(args []string) error {
 
 	// Fan out round 1, gather.
 	reviews, err := convene(seats, brief, 1, o)
-	if err != nil {
-		return err
-	}
 	for _, r := range reviews {
 		if err := writeReview(runDir, r, 1); err != nil {
 			return err
 		}
 	}
+	if err != nil {
+		return errors.Join(err, writeSummary(runDir, nil, reviews, chair, o, LLMUsage{}, false, ""))
+	}
+	allReviews := append([]Review(nil), reviews...)
+	reviews = usableReviews(reviews)
 
-	// Cross-examination rounds: show each reviewer the anonymized peers.
+	// Cross-examination rounds: retain source context and label peer reviews.
 	for round := 2; round <= o.Rounds; round++ {
 		o.logf("round %d: cross-examining %d seats\n", round, len(reviews))
-		reviews, err = crossExamine(seats, reviews, round, o)
+		reviews, err = crossExamine(seats, reviews, brief, round, o)
 		if err != nil {
 			return err
 		}
@@ -187,22 +226,16 @@ func run(args []string) error {
 				return err
 			}
 		}
+		allReviews = append(allReviews, reviews...)
 	}
 
 	// Chair synthesis.
-	chair := seats[0]
-	if o.Chair != "" {
-		for _, s := range seats {
-			if s.Name == o.Chair {
-				chair = s
-			}
-		}
-	}
 	var synthesisResult LLMResult
 	if !o.NoSynthesis {
 		synthesisResult, err = synthesize(chair, reviews, brief, o)
 		if err != nil {
-			return fmt.Errorf("synthesis (%s): %w", chair.Name, err)
+			return errors.Join(fmt.Errorf("synthesis (%s): %w", chair.Name, err),
+				writeSummary(runDir, reviews, allReviews, chair, o, synthesisResult.Usage, true, err.Error()))
 		}
 		if err := os.WriteFile(filepath.Join(runDir, "synthesis.md"), []byte(synthesisResult.Text), 0o644); err != nil {
 			return err
@@ -210,7 +243,7 @@ func run(args []string) error {
 		fmt.Printf("synthesis written by %s -> %s\n", chair.Name, filepath.Join(runDir, "synthesis.md"))
 	}
 
-	if err := writeSummary(runDir, reviews, chair, o, synthesisResult.Usage, !o.NoSynthesis); err != nil {
+	if err := writeSummary(runDir, reviews, allReviews, chair, o, synthesisResult.Usage, !o.NoSynthesis, ""); err != nil {
 		return err
 	}
 
@@ -223,7 +256,7 @@ func run(args []string) error {
 		fmt.Printf("comments written -> %s\n", out)
 	}
 
-	printSummary(reviews, chair, runDir, synthesisResult.Usage, !o.NoSynthesis)
+	printSummary(reviews, allReviews, chair, runDir, synthesisResult, !o.NoSynthesis)
 	return nil
 }
 

@@ -1,0 +1,14 @@
+{
+  "name": "quorum",
+  "description": "Quorum plugins for coding-agent hosts.",
+  "owner": {
+    "name": "Quorum contributors"
+  },
+  "plugins": [
+    {
+      "name": "quorum-review",
+      "source": "./plugins/claude-code",
+      "description": "Review one decision document with Quorum's independent model panel."
+    }
+  ]
+}
